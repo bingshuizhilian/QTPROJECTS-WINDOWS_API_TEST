@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-bool isKilled = true;
+bool isConsumed = false;
 HHOOK keyHook;
 HHOOK mouseHook;
 MainWindow* appAddress;
@@ -20,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    unHook();
     delete ui;
 }
 
@@ -45,7 +46,7 @@ void MainWindow::onExecuteButtonClicked()
     setHook();
 
     HANDLE handle = NULL;
-//    handle = OpenProcess()
+//    handle = OpenProcess("FeiQ.exe");
 }
 
 void setHook()
@@ -64,23 +65,27 @@ LRESULT CALLBACK keyProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if(wParam == WM_KEYUP)
     {
-        return isKilled;
+        return isConsumed;
     }
 
     //在WH_KEYBOARD_LL模式下lParam 是指向KBDLLHOOKSTRUCT类型地址
     KBDLLHOOKSTRUCT *pkbhs = (KBDLLHOOKSTRUCT *) lParam;
 
-    char szBuf[MAXBYTE] = {0};
-//    GetKeyNameText(lParam, szBuf, MAXBYTE);
+    TCHAR szBuf[MAXBYTE] = {0};
+    GetKeyNameText((pkbhs->scanCode<<16) + (pkbhs->flags<<24), szBuf, MAXBYTE);
 
-    appAddress->setEcho("you pressed, but no effect");
+    if(isConsumed)
+        appAddress->setEcho("you pressed, but no effect");
+    else
+        appAddress->setEcho("0x" + QString::number(pkbhs->vkCode, 16) + ": " + QString::fromWCharArray(szBuf));
 
     if(pkbhs->vkCode == VK_F12)
     {
         unHook();
 //        qApp->quit();
     }
-    return isKilled;//返回1表示截取消息不再传递,返回0表示不作处理,消息继续传递
+
+    return isConsumed;//返回1表示截取消息不再传递,返回0表示不作处理,消息继续传递
 }
 
 LRESULT CALLBACK mouseProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -88,12 +93,14 @@ LRESULT CALLBACK mouseProc(int nCode, WPARAM wParam, LPARAM lParam)
     if(wParam == WM_MOUSEMOVE || wParam == WM_LBUTTONUP
             || wParam == WM_RBUTTONUP || wParam == WM_MBUTTONUP)
     {
-        return isKilled;
+        return isConsumed;
     }
 
-//    appAddress->setEcho("0x" + QString::number(wParam, 16));
+    if(isConsumed)
+        appAddress->setEcho("you clicked, but no effect");
+    else
+        appAddress->setEcho("0x" + QString::number(wParam, 16));
 
-    appAddress->setEcho("you clicked, but no effect");
-    return isKilled;
+    return isConsumed;
 }
 
